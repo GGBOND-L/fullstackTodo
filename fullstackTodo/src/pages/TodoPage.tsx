@@ -1,9 +1,64 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Checkbox } from 'antd'
 import type { CheckboxProps } from 'antd'
-import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/auth'
+
+type TodoFilter = 'all' | 'pending' | 'completed'
+
+interface Todo {
+  id: number
+  title: string
+  completed: boolean
+  createdAt: string
+}
+
+interface FilterOption {
+  key: TodoFilter
+  label: string
+}
+
+interface WorkbenchPanelProps {
+  currentFilter: TodoFilter
+  onFilterChange: (filter: TodoFilter) => void
+  totalCount: number
+  completedCount: number
+  pendingCount: number
+  completionRate: number
+}
+
+interface TodoItemProps {
+  todo: Todo
+  onToggleCompleted: (id: number, completed: boolean) => void
+  onDelete: (id: number) => void
+}
+
+const FILTER_OPTIONS: FilterOption[] = [
+  { key: 'all', label: '全部任务' },
+  { key: 'pending', label: '未完成' },
+  { key: 'completed', label: '已完成' },
+]
+
+const MOCK_TODOS: Todo[] = [
+  {
+    id: 1,
+    title: '完成 React 项目初始化',
+    completed: false,
+    createdAt: '2026-04-04 10:20',
+  },
+  {
+    id: 2,
+    title: '完成登录页静态页面',
+    completed: true,
+    createdAt: '2026-04-04 09:40',
+  },
+  {
+    id: 3,
+    title: '打通 Todo 本地交互逻辑',
+    completed: false,
+    createdAt: '2026-04-04 11:10',
+  },
+]
 
 const cardStyle: React.CSSProperties = {
   background: '#fff',
@@ -12,14 +67,14 @@ const cardStyle: React.CSSProperties = {
   padding: '20px',
 }
 
-const statItemStyle: React.CSSProperties = {
+const statCardStyle: React.CSSProperties = {
   background: '#f8fafc',
   borderRadius: '14px',
   padding: '14px',
   border: '1px solid #e5e7eb',
 }
 
-const filterBtnStyle: React.CSSProperties = {
+const filterButtonStyle: React.CSSProperties = {
   textAlign: 'left',
   padding: '12px 14px',
   borderRadius: '12px',
@@ -31,10 +86,10 @@ const filterBtnStyle: React.CSSProperties = {
   fontSize: '14px',
 }
 
-const activeFilterBtnStyle: React.CSSProperties = {
-  ...filterBtnStyle,
+const activeFilterButtonStyle: React.CSSProperties = {
+  ...filterButtonStyle,
   background: '#eff6ff',
-  borderColor: '#bfdbfe', // 不冲突了
+  borderColor: '#bfdbfe',
   color: '#1d4ed8',
   fontWeight: 600,
 }
@@ -50,7 +105,7 @@ const inputStyle: React.CSSProperties = {
   background: '#fff',
 }
 
-const primaryBtnStyle: React.CSSProperties = {
+const primaryButtonStyle: React.CSSProperties = {
   border: 'none',
   borderRadius: '10px',
   padding: '10px 16px',
@@ -60,7 +115,7 @@ const primaryBtnStyle: React.CSSProperties = {
   color: '#fff',
 }
 
-const defaultBtnStyle: React.CSSProperties = {
+const defaultButtonStyle: React.CSSProperties = {
   borderRadius: '10px',
   padding: '10px 16px',
   cursor: 'pointer',
@@ -70,7 +125,7 @@ const defaultBtnStyle: React.CSSProperties = {
   border: '1px solid #d1d5db',
 }
 
-const dangerBtnStyle: React.CSSProperties = {
+const dangerButtonStyle: React.CSSProperties = {
   borderRadius: '10px',
   padding: '10px 16px',
   cursor: 'pointer',
@@ -80,7 +135,7 @@ const dangerBtnStyle: React.CSSProperties = {
   border: '1px solid #ffccc7',
 }
 
-const tagBaseStyle: React.CSSProperties = {
+const statusTagBaseStyle: React.CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   padding: '4px 10px',
@@ -89,41 +144,27 @@ const tagBaseStyle: React.CSSProperties = {
   fontWeight: 600,
 }
 
-const pendingTagStyle: React.CSSProperties = {
-  ...tagBaseStyle,
+const pendingStatusTagStyle: React.CSSProperties = {
+  ...statusTagBaseStyle,
   background: '#fff7ed',
   color: '#b45309',
 }
 
-const doneTagStyle: React.CSSProperties = {
-  ...tagBaseStyle,
+const completedStatusTagStyle: React.CSSProperties = {
+  ...statusTagBaseStyle,
   background: '#ecfdf3',
   color: '#027a48',
 }
 
-type FilterType = 'all' | 'pending' | 'completed'
-
-interface WorkBenchPageProps {
-  filterStatus: FilterType
-  onFilterChange: (filterStatus: FilterType) => void
-}
-
-const WorkBenchPage: React.FC<WorkBenchPageProps> = ({
-  filterStatus,
+const WorkbenchPanel: React.FC<WorkbenchPanelProps> = ({
+  currentFilter,
   onFilterChange,
+  totalCount,
+  completedCount,
+  pendingCount,
+  completionRate,
 }) => {
   const user = useAuthStore((state) => state.user)
-
-  const filters = [
-    { key: 'all', label: '全部任务' },
-    { key: 'pending', label: '未完成' },
-    { key: 'completed', label: '已完成' },
-  ]
-
-  const handleChangeFilter = (filterStatus: FilterType) => {
-    console.log('filterStatus', filterStatus)
-    onFilterChange(filterStatus)
-  }
 
   return (
     <div style={cardStyle}>
@@ -143,10 +184,10 @@ const WorkBenchPage: React.FC<WorkBenchPageProps> = ({
       >
         <div style={{ fontWeight: 700, marginBottom: '6px' }}>当前用户</div>
         <div style={{ fontSize: '14px', color: '#374151' }}>
-          {user?.username}
+          {user?.username ?? '--'}
         </div>
         <div style={{ fontSize: '13px', color: '#6b7280', marginTop: '4px' }}>
-          {user?.email}
+          {user?.email ?? '--'}
         </div>
       </div>
 
@@ -158,38 +199,38 @@ const WorkBenchPage: React.FC<WorkBenchPageProps> = ({
           marginTop: '20px',
         }}
       >
-        <div style={statItemStyle}>
+        <div style={statCardStyle}>
           <div
             style={{ fontSize: '22px', fontWeight: 700, marginBottom: '6px' }}
           >
-            8
+            {totalCount}
           </div>
           <div style={{ color: '#6b7280', fontSize: '14px' }}>全部任务</div>
         </div>
 
-        <div style={statItemStyle}>
+        <div style={statCardStyle}>
           <div
             style={{ fontSize: '22px', fontWeight: 700, marginBottom: '6px' }}
           >
-            3
+            {completedCount}
           </div>
           <div style={{ color: '#6b7280', fontSize: '14px' }}>已完成</div>
         </div>
 
-        <div style={statItemStyle}>
+        <div style={statCardStyle}>
           <div
             style={{ fontSize: '22px', fontWeight: 700, marginBottom: '6px' }}
           >
-            5
+            {pendingCount}
           </div>
           <div style={{ color: '#6b7280', fontSize: '14px' }}>未完成</div>
         </div>
 
-        <div style={statItemStyle}>
+        <div style={statCardStyle}>
           <div
             style={{ fontSize: '22px', fontWeight: 700, marginBottom: '6px' }}
           >
-            37%
+            {completionRate}%
           </div>
           <div style={{ color: '#6b7280', fontSize: '14px' }}>完成率</div>
         </div>
@@ -203,41 +244,40 @@ const WorkBenchPage: React.FC<WorkBenchPageProps> = ({
           gap: '10px',
         }}
       >
-        {filters.map((item) => (
-          <div
-            key={item.key}
-            style={{
-              ...tagBaseStyle,
-              ...(item.key === filterStatus
-                ? activeFilterBtnStyle
-                : filterBtnStyle),
-            }}
-            onClick={() => handleChangeFilter(item.key as FilterType)}
+        {FILTER_OPTIONS.map((option) => (
+          <button
+            key={option.key}
+            type="button"
+            style={
+              option.key === currentFilter
+                ? activeFilterButtonStyle
+                : filterButtonStyle
+            }
+            onClick={() => onFilterChange(option.key)}
           >
-            {item.label}
-          </div>
+            {option.label}
+          </button>
         ))}
       </div>
     </div>
   )
 }
 
-const TodoItem: React.FC<{
-  id: number
-  title: string
-  completed?: boolean
-  createdAt: string
-  onTrigger?: (id: number, completed: boolean) => void
-  onDeleteTodo?: (id: number) => void
-}> = ({ id, title, completed = false, createdAt, onTrigger, onDeleteTodo }) => {
-  const onChange: CheckboxProps['onChange'] = (e) => {
-    console.log(`${id} checked = ${e.target.checked}`)
-    onTrigger?.(id, e.target.checked)
+const TodoItem: React.FC<TodoItemProps> = ({
+  todo,
+  onToggleCompleted,
+  onDelete,
+}) => {
+  const { id, title, completed, createdAt } = todo
+
+  const handleCheckboxChange: CheckboxProps['onChange'] = (event) => {
+    onToggleCompleted(id, event.target.checked)
   }
-  const onDelete = () => {
-    console.log('onDelete', id)
-    onDeleteTodo?.(id)
+
+  const handleDeleteClick = () => {
+    onDelete(id)
   }
+
   return (
     <div
       style={{
@@ -260,7 +300,7 @@ const TodoItem: React.FC<{
           flex: 1,
         }}
       >
-        <Checkbox onChange={onChange} checked={completed}></Checkbox>
+        <Checkbox onChange={handleCheckboxChange} checked={completed} />
 
         <div style={{ minWidth: 0 }}>
           <p
@@ -289,11 +329,17 @@ const TodoItem: React.FC<{
           alignItems: 'center',
         }}
       >
-        <span style={completed ? doneTagStyle : pendingTagStyle}>
+        <span style={completed ? completedStatusTagStyle : pendingStatusTagStyle}>
           {completed ? '已完成' : '未完成'}
         </span>
-        <button style={defaultBtnStyle}>编辑</button>
-        <button style={dangerBtnStyle} onClick={onDelete}>
+        <button type="button" style={defaultButtonStyle}>
+          编辑
+        </button>
+        <button
+          type="button"
+          style={dangerButtonStyle}
+          onClick={handleDeleteClick}
+        >
           删除
         </button>
       </div>
@@ -305,79 +351,67 @@ const TodoPage: React.FC = () => {
   const navigate = useNavigate()
   const logout = useAuthStore((state) => state.logout)
 
-  const mockTodos = [
-    {
-      id: 1,
-      title: '完成 React 项目初始化111',
-      completed: false,
-      createdAt: '2026-04-04 10:20',
-    },
-    {
-      id: 2,
-      title: '完成登录页静态页面2222',
-      completed: true,
-      createdAt: '2026-04-04 09:40',
-    },
-    {
-      id: 3,
-      title: '完成登录页静态页面333',
-      completed: false,
-      createdAt: '2026-04-04 09:40',
-    },
-  ]
-  const [todos, setTodos] = useState(mockTodos)
-  const [filterStatus, setFilter] = useState<FilterType>('all')
+  const [todos, setTodos] = useState<Todo[]>(MOCK_TODOS)
+  const [currentFilter, setCurrentFilter] = useState<TodoFilter>('all')
+  const [newTodoTitle, setNewTodoTitle] = useState('')
 
-  // 过滤状态
   const filteredTodos = todos.filter((todo) => {
-    if (filterStatus === 'pending') {
+    if (currentFilter === 'pending') {
       return !todo.completed
     }
 
-    if (filterStatus === 'completed') {
+    if (currentFilter === 'completed') {
       return todo.completed
     }
 
     return true
   })
 
-  // 新增
-  const [value, setValue] = useState('')
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('handleChange', e.target.value)
-    setValue(e.target.value)
+  const totalCount = todos.length
+  const completedCount = todos.filter((todo) => todo.completed).length
+  const pendingCount = totalCount - completedCount
+  const completionRate =
+    totalCount === 0 ? 0 : Math.round((completedCount / totalCount) * 100)
+
+  const handleNewTodoTitleChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    setNewTodoTitle(event.target.value)
   }
+
   const handleAddTodo = () => {
-    const newTodo = {
+    const trimmedTitle = newTodoTitle.trim()
+
+    if (!trimmedTitle) {
+      return
+    }
+
+    const newTodo: Todo = {
       id: Date.now(),
-      title: value,
+      title: trimmedTitle,
       completed: false,
       createdAt: new Date().toLocaleString(),
     }
-    setTodos([...todos, newTodo])
-    setValue('')
-  }
-  // 改变状态
-  const handleToggleTodo = (id: number, completed: boolean) => {
-    console.log('handleToggleTodo', id, completed)
-    const newTodos = todos.map((todo) => {
-      if (todo.id === id) {
-        return { ...todo, completed: !todo.completed }
-      }
-      return todo
-    })
-    setTodos(newTodos)
-  }
-  // 删除
-  const handleDeleteTodo = (id: number) => {
-    console.log('handleDeleteTodo', id)
-    const newTodos = todos.filter((todo) => todo.id !== id)
-    setTodos(newTodos)
+
+    setTodos((previousTodos) => [...previousTodos, newTodo])
+    setNewTodoTitle('')
   }
 
-  // 退出登录
+  const handleToggleTodoCompleted = (id: number, completed: boolean) => {
+    setTodos((previousTodos) =>
+      previousTodos.map((todo) =>
+        todo.id === id ? { ...todo, completed } : todo
+      )
+    )
+  }
+
+  const handleDeleteTodo = (id: number) => {
+    setTodos((previousTodos) =>
+      previousTodos.filter((todo) => todo.id !== id)
+    )
+  }
+
   const handleLogout = () => {
-    console.log('logout')
     logout()
     navigate('/login')
   }
@@ -401,9 +435,13 @@ const TodoPage: React.FC = () => {
         }}
       >
         <div>
-          <WorkBenchPage
-            filterStatus={filterStatus}
-            onFilterChange={setFilter}
+          <WorkbenchPanel
+            currentFilter={currentFilter}
+            onFilterChange={setCurrentFilter}
+            totalCount={totalCount}
+            completedCount={completedCount}
+            pendingCount={pendingCount}
+            completionRate={completionRate}
           />
         </div>
 
@@ -423,7 +461,7 @@ const TodoPage: React.FC = () => {
                 我的待办
               </h2>
             </div>
-            <button style={defaultBtnStyle} onClick={handleLogout}>
+            <button type="button" style={defaultButtonStyle} onClick={handleLogout}>
               退出登录
             </button>
           </div>
@@ -436,12 +474,12 @@ const TodoPage: React.FC = () => {
             }}
           >
             <input
-              value={value}
-              onChange={handleChange}
+              value={newTodoTitle}
+              onChange={handleNewTodoTitleChange}
               style={{ ...inputStyle, flex: 1 }}
               placeholder="输入新的待办事项，例如：完成登录接口联调"
             />
-            <button onClick={handleAddTodo} style={primaryBtnStyle}>
+            <button type="button" onClick={handleAddTodo} style={primaryButtonStyle}>
               新增任务
             </button>
           </div>
@@ -457,9 +495,9 @@ const TodoPage: React.FC = () => {
               {filteredTodos.map((todo) => (
                 <TodoItem
                   key={todo.id}
-                  {...todo}
-                  onTrigger={handleToggleTodo}
-                  onDeleteTodo={handleDeleteTodo}
+                  todo={todo}
+                  onToggleCompleted={handleToggleTodoCompleted}
+                  onDelete={handleDeleteTodo}
                 />
               ))}
             </div>
@@ -478,20 +516,6 @@ const TodoPage: React.FC = () => {
               当前筛选条件下暂无待办事项。
             </div>
           )}
-
-          <div
-            style={{
-              marginTop: '20px',
-              textAlign: 'center',
-              padding: '48px 24px',
-              color: '#6b7280',
-              border: '1px dashed #d1d5db',
-              borderRadius: '16px',
-              background: '#fafafa',
-            }}
-          >
-            空状态参考：暂无待办事项，点击上方输入框添加第一条任务。
-          </div>
         </div>
       </div>
     </div>

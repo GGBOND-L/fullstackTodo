@@ -71,6 +71,80 @@ exports.createTodo = async (req, res) => {
   }
 }
 
+exports.updateTodo = async (req, res) => {
+  try {
+    const { id } = req.params
+    const { title, completed } = req.body
+
+    const [result] = await pool.query(
+      `
+      UPDATE todos
+      SET title = ?, completed = ?
+      WHERE id = ?
+      `,
+      [title, completed, id],
+    )
+
+    if (result.affectedRows === 0) {
+      return res.json({
+        code: 4040,
+        message: 'todo 不存在',
+        data: null,
+      })
+    }
+
+    return res.json({
+      code: 0,
+      message: '更新成功',
+      data: null,
+    })
+  } catch (error) {
+    console.error('updateTodo error:', error)
+    return res.json({
+      code: 5000,
+      message: '服务器错误',
+      data: null,
+    })
+  }
+}
+
+exports.updateTodoCompleted = async (req, res) => {
+  try {
+    const { id } = req.params
+    const { completed } = req.body
+
+    const [result] = await pool.query(
+      `
+      UPDATE todos
+      SET completed = ?
+      WHERE id = ?
+      `,
+      [completed, id],
+    )
+
+    if (result.affectedRows === 0) {
+      return res.json({
+        code: 4040,
+        message: 'todo 不存在',
+        data: null,
+      })
+    }
+
+    return res.json({
+      code: 0,
+      message: '更新成功',
+      data: null,
+    })
+  } catch (error) {
+    console.error('updateTodo error:', error)
+    return res.json({
+      code: 5000,
+      message: '服务器错误',
+      data: null,
+    })
+  }
+}
+
 exports.deleteTodo = async (req, res) => {
   try {
     const { id } = req.params

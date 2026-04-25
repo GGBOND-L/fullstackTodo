@@ -1,8 +1,9 @@
-import React, { useState } from 'react'
-import { Checkbox } from 'antd'
-import type { CheckboxProps } from 'antd'
+import React, { useEffect, useState } from 'react'
+import { Checkbox, Modal, Form, Input, Button } from 'antd'
+import type { CheckboxProps, FormProps } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/auth'
+import axios from 'axios'
 
 type TodoFilter = 'all' | 'pending' | 'completed'
 
@@ -11,6 +12,19 @@ interface Todo {
   title: string
   completed: boolean
   createdAt: string
+}
+
+interface TodoApiItem {
+  id: number
+  title: string
+  completed: number | boolean
+  created_at: string
+}
+
+interface TodoApiResponse<T> {
+  code: number
+  message: string
+  data: T
 }
 
 interface FilterOption {
@@ -29,35 +43,21 @@ interface WorkbenchPanelProps {
 
 interface TodoItemProps {
   todo: Todo
-  onToggleCompleted: (id: number, completed: boolean) => void
   onDelete: (id: number) => void
+  onRefresh: () => void
+  onComplete: (id: number, completed: boolean) => void
 }
+
+type FieldType = {
+  title?: string
+}
+
+const API_BASE_URL = 'http://localhost:3000/api'
 
 const FILTER_OPTIONS: FilterOption[] = [
   { key: 'all', label: '全部任务' },
   { key: 'pending', label: '未完成' },
   { key: 'completed', label: '已完成' },
-]
-
-const MOCK_TODOS: Todo[] = [
-  {
-    id: 1,
-    title: '完成 React 项目初始化',
-    completed: false,
-    createdAt: '2026-04-04 10:20',
-  },
-  {
-    id: 2,
-    title: '完成登录页静态页面',
-    completed: true,
-    createdAt: '2026-04-04 09:40',
-  },
-  {
-    id: 3,
-    title: '打通 Todo 本地交互逻辑',
-    completed: false,
-    createdAt: '2026-04-04 11:10',
-  },
 ]
 
 const cardStyle: React.CSSProperties = {
@@ -154,6 +154,15 @@ const completedStatusTagStyle: React.CSSProperties = {
   ...statusTagBaseStyle,
   background: '#ecfdf3',
   color: '#027a48',
+}
+
+const mapTodoFromApi = (item: TodoApiItem): Todo => {
+  return {
+    id: item.id,
+    title: item.title,
+    completed: Boolean(item.completed),
+    createdAt: item.created_at,
+  }
 }
 
 const WorkbenchPanel: React.FC<WorkbenchPanelProps> = ({
@@ -265,17 +274,58 @@ const WorkbenchPanel: React.FC<WorkbenchPanelProps> = ({
 
 const TodoItem: React.FC<TodoItemProps> = ({
   todo,
-  onToggleCompleted,
   onDelete,
+  onRefresh,
+  onComplete,
 }) => {
   const { id, title, completed, createdAt } = todo
 
-  const handleCheckboxChange: CheckboxProps['onChange'] = (event) => {
-    onToggleCompleted(id, event.target.checked)
-  }
-
   const handleDeleteClick = () => {
     onDelete(id)
+  }
+
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [form] = Form.useForm<FieldType>()
+
+  const showEditModal = () => {
+    // 打开弹窗时回填
+    console.log('showEditModal form:', form)
+    form.setFieldsValue({
+      title: title,
+    })
+    setIsModalOpen(true)
+  }
+
+  const handleConfirmEdit = async () => {
+    // TODO: 后续把编辑逻辑抽离出来放在父组件里
+    try {
+      const values = await form.validateFields()
+      console.log('handleConfirmEdit validateFields values:', values)
+
+      const result = await axios.put(`/api/todos/${id}`, {
+        title: values.title?.trim(),
+        completed,
+      })
+
+      if (result.data.code !== 0) {
+        alert(result.data.message || '修改失败')
+        return
+      }
+
+      setIsModalOpen(false)
+      form.resetFields()
+      onRefresh()
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error('update request error:', error)
+        alert('修改失败，请检查后端服务是否正常')
+      }
+    }
+  }
+
+  const handleCheckboxChange: CheckboxProps['onChange'] = (e) => {
+    console.log(`checked = ${e.target.checked}`)
+    onComplete(id, e.target.checked)
   }
 
   return (
@@ -329,10 +379,16 @@ const TodoItem: React.FC<TodoItemProps> = ({
           alignItems: 'center',
         }}
       >
-        <span style={completed ? completedStatusTagStyle : pendingStatusTagStyle}>
+        <span
+          style={completed ? completedStatusTagStyle : pendingStatusTagStyle}
+        >
           {completed ? '已完成' : '未完成'}
         </span>
-        <button type="button" style={defaultButtonStyle}>
+        <button
+          type="button"
+          style={defaultButtonStyle}
+          onClick={showEditModal}
+        >
           编辑
         </button>
         <button
@@ -343,6 +399,31 @@ const TodoItem: React.FC<TodoItemProps> = ({
           删除
         </button>
       </div>
+      <Modal
+        title="Basic Modal"
+        closable={{ 'aria-label': 'Custom Close Button' }}
+        open={isModalOpen}
+        onOk={handleConfirmEdit}
+        onCancel={() => setIsModalOpen(false)}
+      >
+        <Form
+          form={form}
+          name="basic"
+          labelCol={{ span: 8 }}
+          wrapperCol={{ span: 16 }}
+          style={{ maxWidth: 600 }}
+          initialValues={{ remember: true }}
+          autoComplete="off"
+        >
+          <Form.Item<FieldType>
+            label="待办事项"
+            name="title"
+            rules={[{ required: true, message: '请输入待办事项!' }]}
+          >
+            <Input />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   )
 }
@@ -351,9 +432,10 @@ const TodoPage: React.FC = () => {
   const navigate = useNavigate()
   const logout = useAuthStore((state) => state.logout)
 
-  const [todos, setTodos] = useState<Todo[]>(MOCK_TODOS)
+  const [todos, setTodos] = useState<Todo[]>([])
   const [currentFilter, setCurrentFilter] = useState<TodoFilter>('all')
   const [newTodoTitle, setNewTodoTitle] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
 
   const filteredTodos = todos.filter((todo) => {
     if (currentFilter === 'pending') {
@@ -373,42 +455,125 @@ const TodoPage: React.FC = () => {
   const completionRate =
     totalCount === 0 ? 0 : Math.round((completedCount / totalCount) * 100)
 
+  const fetchTodoList = async () => {
+    try {
+      setIsLoading(true)
+
+      const response = await fetch(`${API_BASE_URL}/todos`)
+      console.log('fetchTodoList response:', response)
+      const result: TodoApiResponse<TodoApiItem[]> = await response.json()
+
+      if (result.code !== 0) {
+        alert(result.message || '获取列表失败')
+        return
+      }
+
+      const mappedTodos = result.data.map(mapTodoFromApi)
+      setTodos(mappedTodos)
+    } catch (error) {
+      console.error('fetchTodoList error:', error)
+      alert('获取列表失败，请检查后端服务是否正常')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchTodoList()
+  }, [])
+
   const handleNewTodoTitleChange = (
-    event: React.ChangeEvent<HTMLInputElement>
+    event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     setNewTodoTitle(event.target.value)
   }
 
-  const handleAddTodo = () => {
+  const handleAddTodo = async () => {
     const trimmedTitle = newTodoTitle.trim()
 
     if (!trimmedTitle) {
       return
     }
 
-    const newTodo: Todo = {
-      id: Date.now(),
-      title: trimmedTitle,
-      completed: false,
-      createdAt: new Date().toLocaleString(),
+    try {
+      setIsLoading(true)
+
+      // const response = await fetch(`${API_BASE_URL}/todos`, {
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //   },
+      //   body: JSON.stringify({
+      //     title: trimmedTitle,
+      //   }),
+      // })
+
+      // const result: TodoApiResponse<TodoApiItem> = await response.json()
+      const result = await axios.post(`/api/todos`, {
+        title: trimmedTitle,
+      })
+
+      console.log('handleAddTodo result:', result)
+
+      if (result.data.code !== 0) {
+        alert(result.data.message || '新增失败')
+        return
+      }
+
+      setNewTodoTitle('')
+      await fetchTodoList()
+    } catch (error) {
+      console.error('handleAddTodo error:', error)
+      alert('新增失败，请检查后端服务是否正常')
+    } finally {
+      setIsLoading(false)
     }
-
-    setTodos((previousTodos) => [...previousTodos, newTodo])
-    setNewTodoTitle('')
   }
 
-  const handleToggleTodoCompleted = (id: number, completed: boolean) => {
-    setTodos((previousTodos) =>
-      previousTodos.map((todo) =>
-        todo.id === id ? { ...todo, completed } : todo
-      )
-    )
+  const handleDeleteTodo = async (id: number) => {
+    try {
+      setIsLoading(true)
+
+      // const response = await fetch(`${API_BASE_URL}/todos/${id}`, {
+      //   method: 'DELETE',
+      // })
+
+      // const result: TodoApiResponse<null> = await response.json()
+      const result = await axios.delete(`/api/todos/${id}`)
+
+      if (result.data.code !== 0) {
+        alert(result.data.message || '删除失败')
+        return
+      }
+
+      await fetchTodoList()
+    } catch (error) {
+      console.error('handleDeleteTodo error:', error)
+      alert('删除失败，请检查后端服务是否正常')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const handleDeleteTodo = (id: number) => {
-    setTodos((previousTodos) =>
-      previousTodos.filter((todo) => todo.id !== id)
-    )
+  const handleCompleteTodo = async (id: number, completed: boolean) => {
+    try {
+      setIsLoading(true)
+      const result = await axios.put(`/api/todos/${id}/completed`, {
+        completed,
+      })
+
+      if (result.data.code !== 0) {
+        alert(result.data.message || '更新失败')
+        return
+      }
+
+      await fetchTodoList()
+    } catch (error) {
+      console.error('handleCompleteTodo error:', error)
+      alert('更新失败，请检查后端服务是否正常')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleLogout = () => {
@@ -461,7 +626,11 @@ const TodoPage: React.FC = () => {
                 我的待办
               </h2>
             </div>
-            <button type="button" style={defaultButtonStyle} onClick={handleLogout}>
+            <button
+              type="button"
+              style={defaultButtonStyle}
+              onClick={handleLogout}
+            >
               退出登录
             </button>
           </div>
@@ -478,13 +647,29 @@ const TodoPage: React.FC = () => {
               onChange={handleNewTodoTitleChange}
               style={{ ...inputStyle, flex: 1 }}
               placeholder="输入新的待办事项，例如：完成登录接口联调"
+              disabled={isLoading}
             />
-            <button type="button" onClick={handleAddTodo} style={primaryButtonStyle}>
+            <button
+              type="button"
+              onClick={handleAddTodo}
+              style={primaryButtonStyle}
+              disabled={isLoading}
+            >
               新增任务
             </button>
           </div>
 
-          {filteredTodos.length > 0 ? (
+          {isLoading ? (
+            <div
+              style={{
+                textAlign: 'center',
+                padding: '32px 24px',
+                color: '#6b7280',
+              }}
+            >
+              加载中...
+            </div>
+          ) : filteredTodos.length > 0 ? (
             <div
               style={{
                 display: 'flex',
@@ -496,8 +681,9 @@ const TodoPage: React.FC = () => {
                 <TodoItem
                   key={todo.id}
                   todo={todo}
-                  onToggleCompleted={handleToggleTodoCompleted}
                   onDelete={handleDeleteTodo}
+                  onRefresh={fetchTodoList}
+                  onComplete={handleCompleteTodo}
                 />
               ))}
             </div>

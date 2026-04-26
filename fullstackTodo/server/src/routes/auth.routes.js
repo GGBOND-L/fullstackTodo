@@ -1,30 +1,15 @@
 const express = require('express')
+const { register, login, getCurrentUser } = require('../controllers/auth.controller')
+const { authMiddleware } = require('../middleware/auth.middleware')
 
 const router = express.Router()
 
-router.post('/register', (req, res) => {
-  res.json({
-    code: 0,
-    message: 'register route placeholder',
-    data: null,
-  })
-})
+router.post('/register', register)
 
-router.post('/login', (req, res) => {
-  res.json({
-    code: 0,
-    message: 'login route placeholder',
-    data: null,
-  })
-})
+router.post('/login', login)
 
-router.get('/me', (req, res) => {
-  res.json({
-    code: 0,
-    message: 'me route placeholder',
-    data: null,
-  })
-})
+router.get('/me', authMiddleware, getCurrentUser)
+
 
 router.get('/test', (req, res) => {
   res.json({

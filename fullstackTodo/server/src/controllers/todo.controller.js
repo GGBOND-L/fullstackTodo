@@ -2,12 +2,15 @@ const pool = require('../config/db')
 
 exports.getTodoList = async (req, res) => {
   try {
+    const userId = req.user.id
     const [rows] = await pool.query(
       `
       SELECT id, title, completed, created_at
       FROM todos
+      WHERE user_id = ?
       ORDER BY id DESC
       `,
+      [userId],
     )
 
     return res.json({
@@ -38,13 +41,14 @@ exports.createTodo = async (req, res) => {
     }
 
     const trimmedTitle = title.trim()
+    const userId = req.user.id
 
     const [result] = await pool.query(
       `
-      INSERT INTO todos (title, completed)
-      VALUES (?, ?)
+      INSERT INTO todos (user_id, title, completed)
+      VALUES (?, ?, ?)
       `,
-      [trimmedTitle, 0],
+      [userId, trimmedTitle, 0],
     )
 
     const [rows] = await pool.query(
@@ -75,14 +79,15 @@ exports.updateTodo = async (req, res) => {
   try {
     const { id } = req.params
     const { title, completed } = req.body
+    const userId = req.user.id
 
     const [result] = await pool.query(
       `
       UPDATE todos
       SET title = ?, completed = ?
-      WHERE id = ?
+      WHERE id = ? AND user_id = ?
       `,
-      [title, completed, id],
+      [title, completed ? 1 : 0, id, userId],
     )
 
     if (result.affectedRows === 0) {
@@ -112,14 +117,15 @@ exports.updateTodoCompleted = async (req, res) => {
   try {
     const { id } = req.params
     const { completed } = req.body
+    const userId = req.user.id
 
     const [result] = await pool.query(
       `
       UPDATE todos
       SET completed = ?
-      WHERE id = ?
+      WHERE id = ? AND user_id = ?
       `,
-      [completed, id],
+      [completed ? 1 : 0, id, userId],
     )
 
     if (result.affectedRows === 0) {
@@ -148,13 +154,14 @@ exports.updateTodoCompleted = async (req, res) => {
 exports.deleteTodo = async (req, res) => {
   try {
     const { id } = req.params
+    const userId = req.user.id
 
     const [result] = await pool.query(
       `
       DELETE FROM todos
-      WHERE id = ?
+      WHERE id = ? AND user_id = ?
       `,
-      [id],
+      [id, userId],
     )
 
     if (result.affectedRows === 0) {

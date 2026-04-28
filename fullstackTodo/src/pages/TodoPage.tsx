@@ -1,9 +1,15 @@
 import React, { useEffect, useState } from 'react'
-import { Checkbox, Modal, Form, Input, Button } from 'antd'
-import type { CheckboxProps, FormProps } from 'antd'
+import { Checkbox, Modal, Form, Input } from 'antd'
+import type { CheckboxProps } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/auth'
 import axios from 'axios'
+import {
+  getTodoListApi,
+  createTodoApi,
+  deleteTodoApi,
+  updateTodoApi,
+} from '../api/todo'
 
 type TodoFilter = 'all' | 'pending' | 'completed'
 
@@ -21,11 +27,11 @@ interface TodoApiItem {
   created_at: string
 }
 
-interface TodoApiResponse<T> {
-  code: number
-  message: string
-  data: T
-}
+// interface TodoApiResponse<T> {
+//   code: number
+//   message: string
+//   data: T
+// }
 
 interface FilterOption {
   key: TodoFilter
@@ -45,14 +51,14 @@ interface TodoItemProps {
   todo: Todo
   onDelete: (id: number) => void
   onRefresh: () => void
-  onComplete: (id: number, completed: boolean) => void
+  onComplete: (id: number, completed: boolean, title: string) => void
 }
 
 type FieldType = {
   title?: string
 }
 
-const API_BASE_URL = 'http://localhost:3000/api'
+// const API_BASE_URL = 'http://localhost:3000/api'
 
 const FILTER_OPTIONS: FilterOption[] = [
   { key: 'all', label: '全部任务' },
@@ -302,15 +308,18 @@ const TodoItem: React.FC<TodoItemProps> = ({
       const values = await form.validateFields()
       console.log('handleConfirmEdit validateFields values:', values)
 
-      const result = await axios.put(`/api/todos/${id}`, {
+      // const result = await axios.put(`/api/todos/${id}`, {
+      //   title: values.title?.trim(),
+      //   completed,
+      // })
+      if (!values.title?.trim()) {
+        return
+      }
+      const result = await updateTodoApi(id, {
         title: values.title?.trim(),
         completed,
       })
-
-      if (result.data.code !== 0) {
-        alert(result.data.message || '修改失败')
-        return
-      }
+      console.log('handleConfirmEdit result:', result)
 
       setIsModalOpen(false)
       form.resetFields()
@@ -325,7 +334,7 @@ const TodoItem: React.FC<TodoItemProps> = ({
 
   const handleCheckboxChange: CheckboxProps['onChange'] = (e) => {
     console.log(`checked = ${e.target.checked}`)
-    onComplete(id, e.target.checked)
+    onComplete(id, e.target.checked, title)
   }
 
   return (
@@ -459,16 +468,12 @@ const TodoPage: React.FC = () => {
     try {
       setIsLoading(true)
 
-      const response = await fetch(`${API_BASE_URL}/todos`)
-      console.log('fetchTodoList response:', response)
-      const result: TodoApiResponse<TodoApiItem[]> = await response.json()
+      // const response = await fetch(`${API_BASE_URL}/todos`)
+      // console.log('fetchTodoList response:', response)
+      // const result: TodoApiResponse<TodoApiItem[]> = await response.json()
+      const result = await getTodoListApi()
 
-      if (result.code !== 0) {
-        alert(result.message || '获取列表失败')
-        return
-      }
-
-      const mappedTodos = result.data.map(mapTodoFromApi)
+      const mappedTodos = result.map(mapTodoFromApi)
       setTodos(mappedTodos)
     } catch (error) {
       console.error('fetchTodoList error:', error)
@@ -509,16 +514,13 @@ const TodoPage: React.FC = () => {
       // })
 
       // const result: TodoApiResponse<TodoApiItem> = await response.json()
-      const result = await axios.post(`/api/todos`, {
-        title: trimmedTitle,
-      })
+      // const result = await axios.post(`/api/todos`, {
+      //   title: trimmedTitle,
+      // })
+
+      const result = await createTodoApi(trimmedTitle)
 
       console.log('handleAddTodo result:', result)
-
-      if (result.data.code !== 0) {
-        alert(result.data.message || '新增失败')
-        return
-      }
 
       setNewTodoTitle('')
       await fetchTodoList()
@@ -539,12 +541,10 @@ const TodoPage: React.FC = () => {
       // })
 
       // const result: TodoApiResponse<null> = await response.json()
-      const result = await axios.delete(`/api/todos/${id}`)
+      // const result = await axios.delete(`/api/todos/${id}`)
 
-      if (result.data.code !== 0) {
-        alert(result.data.message || '删除失败')
-        return
-      }
+      const result = await deleteTodoApi(id)
+      console.log('handleDeleteTodo result:', result)
 
       await fetchTodoList()
     } catch (error) {
@@ -555,17 +555,19 @@ const TodoPage: React.FC = () => {
     }
   }
 
-  const handleCompleteTodo = async (id: number, completed: boolean) => {
+  const handleCompleteTodo = async (
+    id: number,
+    completed: boolean,
+    title: string,
+  ) => {
     try {
       setIsLoading(true)
-      const result = await axios.put(`/api/todos/${id}/completed`, {
-        completed,
-      })
+      // const result = await axios.put(`/api/todos/${id}/completed`, {
+      //   completed,
+      // })
 
-      if (result.data.code !== 0) {
-        alert(result.data.message || '更新失败')
-        return
-      }
+      const result = await updateTodoApi(id, { completed, title })
+      console.log('handleCompleteTodo result:', result)
 
       await fetchTodoList()
     } catch (error) {

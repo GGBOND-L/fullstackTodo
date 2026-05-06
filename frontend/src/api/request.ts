@@ -9,9 +9,9 @@ interface ApiResponse<T> {
   message: string
   data: T
 }
-
+console.log('233',import.meta.env.VITE_BASE_URL)
 const instance = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_BASE_URL,
   timeout: 10000,
 })
 

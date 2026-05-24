@@ -10,10 +10,10 @@ export default defineConfig({
   ],
   server: {
     proxy: {
-      '/api': {
-        target: 'https://fullstacktodo-production-7fec.up.railway.app/', // 后端地址
+      '/baseApi': {
+        target: 'http://localhost:3000/api', // 后端地址
         changeOrigin: true,
-        // rewrite: (path) => path.replace(/^\/api/, ''), //TODO 有什么用
+        rewrite: (path) => path.replace(/^\/baseApi/, ''),
       },
     },
   },

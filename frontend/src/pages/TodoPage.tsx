@@ -184,7 +184,7 @@ const WorkbenchPanel: React.FC<WorkbenchPanelProps> = ({
   return (
     <div style={cardStyle}>
       <h2 style={{ marginTop: 0, marginBottom: '8px', fontSize: '18px' }}>
-        工作台
+        工作台GG
       </h2>
       <div style={{ color: '#6b7280', fontSize: '14px' }}>认真对待每一天</div>
 

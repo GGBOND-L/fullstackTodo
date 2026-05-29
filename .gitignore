@@ -6,6 +6,12 @@ server/node_modules/
 # env
 .env
 .env.*
+!.env.example
+!.env.docker.example
+!server/.env.example
+!server/.env.docker.example
+!frontend/.env.example
+!frontend/.env.production.example
 
 # build
 dist/
@@ -13,9 +19,22 @@ frontend/dist/
 server/dist/
 
 # logs
+logs/
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
 
 # editor
 .vscode/
 .idea/
+
+# docker/mysql local data
+mysql_data/
+*.sql.bak

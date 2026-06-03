@@ -19,5 +19,5 @@ jobs:
           script: |
             cd /www/fullstackTodo
             git pull origin main
-            docker compose --env-file ./server/.env.docker up -d --build
+            docker compose --env-file ./.env.docker up -d --build
             docker image prune -f

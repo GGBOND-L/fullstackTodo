@@ -97,7 +97,7 @@ const LoginPage: React.FC = () => {
               登录
             </Button>
             <p style={{ margin: '16px 0 0', color: '#6b7280' }}>
-              没有账号？<a href="/register">去注册</a>
+              没有账号？<a href="/register">去注册123</a>
             </p>
           </Form.Item>
         </Form>

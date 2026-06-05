@@ -54,9 +54,9 @@ const LoginPage: React.FC = () => {
           boxSizing: 'border-box',
         }}
       >
-        <h1 style={{ margin: '0 0 8px' }}>123欢迎回来ggg</h1>
+        <h1 style={{ margin: '0 0 8px' }}>欢迎回来</h1>
         <p style={{ margin: '0 0 24px', color: '#6b7280' }}>
-          123登录后管理你的待办事项1234
+          登录后管理你的待办事项
         </p>
         <Form
           name="basic"
@@ -94,10 +94,10 @@ const LoginPage: React.FC = () => {
 
           <Form.Item>
             <Button type="primary" htmlType="submit" size="large" block>
-              登录
+              登录666
             </Button>
             <p style={{ margin: '16px 0 0', color: '#6b7280' }}>
-              没有账号？<a href="/register">去注册123</a>
+              没有账号？<a href="/register">去注册666</a>
             </p>
           </Form.Item>
         </Form>

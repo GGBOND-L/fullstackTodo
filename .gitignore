@@ -12,6 +12,7 @@ server/node_modules/
 !server/.env.docker.example
 !frontend/.env.example
 !frontend/.env.production.example
+!frontend/.env.production
 
 # build
 dist/
